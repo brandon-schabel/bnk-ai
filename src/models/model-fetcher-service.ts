@@ -5,7 +5,7 @@ import {
     GROQ_BASE_URL,
     TOGETHER_BASE_URL,
     LMSTUDIO_BASE_URL,
-    OLLAMA_BASE_URL, OPENAI_BASE_URL, 
+    OLLAMA_BASE_URL, OPENAI_BASE_URL,
     OPENROUTER_BASE_URL,
     XAI_BASE_URL
 } from "../constants/provider-defauls"; // or wherever you store these
@@ -20,7 +20,7 @@ import type {
     OpenRouterModel,
     OpenRouterModelsResponse,
     XAIModel,
-    
+
 } from "./model-types";
 
 
@@ -209,8 +209,8 @@ export class ModelFetcherService {
     // -----------------------------
     // OLLAMA EXAMPLE
     // -----------------------------
-    async listOllamaModels(): Promise<UnifiedModel[]> {
-        const response = await fetch(`${process.env.OLLAMA_BASE_URL || "http://localhost:11434"}/api/tags`);
+    async listOllamaModels({ baseUrl = "http://localhost:11434" }: { baseUrl: string }): Promise<UnifiedModel[]> {
+        const response = await fetch(`${baseUrl}/api/tags`);
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`Ollama error: ${response.statusText} - ${errorText}`);
