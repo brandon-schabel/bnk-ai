@@ -1,3 +1,13 @@
+export type APIProviders = 'openai' |
+    'openrouter' |
+    'lmstudio' |
+    'ollama' |
+    'xai' |
+    'google_gemini' |
+    'anthropic' |
+    'groq' |
+    'together'
+
 export type UnifiedModel = {
     id: string;
     name: string;

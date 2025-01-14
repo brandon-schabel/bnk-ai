@@ -1,14 +1,9 @@
 // model-fetcher-service.ts
-import type { APIProviders } from "shared";
 import {
     GEMINI_BASE_URL,
     GROQ_BASE_URL,
     TOGETHER_BASE_URL,
-    LMSTUDIO_BASE_URL,
-    OLLAMA_BASE_URL, OPENAI_BASE_URL,
-    OPENROUTER_BASE_URL,
-    XAI_BASE_URL
-} from "../constants/provider-defauls"; // or wherever you store these
+} from "../constants/provider-defauls"; 
 import type {
     UnifiedModel,
     GeminiAPIModel,
@@ -19,8 +14,7 @@ import type {
     OpenAIModelsListResponse,
     OpenRouterModel,
     OpenRouterModelsResponse,
-    XAIModel,
-
+    APIProviders,
 } from "./model-types";
 
 
@@ -209,7 +203,7 @@ export class ModelFetcherService {
     // -----------------------------
     // OLLAMA EXAMPLE
     // -----------------------------
-    async listOllamaModels({ baseUrl = "http://localhost:11434" }: { baseUrl: string }): Promise<UnifiedModel[]> {
+    async listOllamaModels({ baseUrl }: { baseUrl: string } = { baseUrl: "http://localhost:11434" }): Promise<UnifiedModel[]> {
         const response = await fetch(`${baseUrl}/api/tags`);
         if (!response.ok) {
             const errorText = await response.text();
@@ -227,8 +221,8 @@ export class ModelFetcherService {
     // -----------------------------
     // LMSTUDIO EXAMPLE
     // -----------------------------
-    async listLMStudioModels(): Promise<UnifiedModel[]> {
-        const response = await fetch(`${process.env.LMSTUDIO_BASE_URL || "http://localhost:1234"}/models`);
+    async listLMStudioModels({ baseUrl }: { baseUrl: string } = { baseUrl: "http://localhost:1234" }): Promise<UnifiedModel[]> {
+        const response = await fetch(`${baseUrl}/models`);
         if (!response.ok) {
             const errorText = await response.text();
             throw new Error(`LM Studio error: ${response.statusText} - ${errorText}`);
