@@ -3,7 +3,7 @@
   "module": "src/index.ts",
   "main": "src/index.ts",
   "type": "module",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "scripts": {
     "test": "bun test src/",
     "test:watch": "bun test --watch src/",
