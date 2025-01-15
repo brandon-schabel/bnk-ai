@@ -35,7 +35,8 @@ export interface ProviderKeysConfig {
 }
 
 export type ListModelsOptions = {
-    baseUrl?: string;
+    ollamaBaseUrl?: string;
+    lmstudioBaseUrl?: string;
 }
 
 export class ModelFetcherService {
@@ -255,7 +256,8 @@ export class ModelFetcherService {
      * A unified method to list models for a given provider
      */
     async listModels(provider: APIProviders, {
-        baseUrl
+        ollamaBaseUrl,
+        lmstudioBaseUrl,
     }: ListModelsOptions = {}): Promise<UnifiedModel[]> {
         switch (provider) {
             case "openrouter": {
@@ -268,11 +270,11 @@ export class ModelFetcherService {
             }
 
             case "lmstudio": {
-                return this.listLMStudioModels({ baseUrl: baseUrl || LMSTUDIO_BASE_URL });
+                return this.listLMStudioModels({ baseUrl: lmstudioBaseUrl || LMSTUDIO_BASE_URL });
             }
 
             case "ollama": {
-                return this.listOllamaModels({ baseUrl: baseUrl || OLLAMA_BASE_URL });
+                return this.listOllamaModels({ baseUrl: ollamaBaseUrl || OLLAMA_BASE_URL });
             }
 
             case "xai": {
