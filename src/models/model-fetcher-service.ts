@@ -20,6 +20,7 @@ import type {
     OpenRouterModel,
     OpenRouterModelsResponse,
     APIProviders,
+    OllamaModel
 } from "./model-types";
 
 
@@ -223,11 +224,15 @@ export class ModelFetcherService {
             throw new Error(`Ollama error: ${response.statusText} - ${errorText}`);
         }
 
-        const data = await response.json() as string[];
-        return data.map((modelName) => ({
-            id: modelName,
-            name: modelName,
-            description: `Ollama model: ${modelName}`,
+        const data = await response.json() as {
+            models: OllamaModel[]
+        }
+
+        return data.models.map((model) => ({
+            id: model.name,
+            name: model.name,
+            //  fill in details about the amodel from the data
+            description: `${model.details.family} family - ${model.name} | size: ${model.details.parameter_size} | quantization: ${model.details.quantization_level}`,
         }));
     }
 

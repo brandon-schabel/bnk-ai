@@ -141,3 +141,19 @@ export type XAIModel = {
     object: string,
     owned_by: string
 }
+
+export type OllamaModel = {
+    name: string,
+    model: string,
+    modified_at: string,
+    size: number,
+    digest: string,
+    details: {
+        parent_model: string,
+        format: string,
+        family: string,
+        families: string[],
+        parameter_size: string,
+        quantization_level: string,
+    }
+}
