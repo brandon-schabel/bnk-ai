@@ -3,7 +3,7 @@ import {
     GEMINI_BASE_URL,
     GROQ_BASE_URL,
     TOGETHER_BASE_URL,
-} from "../constants/provider-defauls"; 
+} from "../constants/provider-defauls";
 import type {
     UnifiedModel,
     GeminiAPIModel,
@@ -19,7 +19,7 @@ import type {
 
 
 // provider-config.ts
-export interface ProviderConfig {
+export interface ProviderKeysConfig {
     openaiKey?: string;
     anthropicKey?: string;
     googleGeminiKey?: string;
@@ -29,9 +29,13 @@ export interface ProviderConfig {
     openRouterKey?: string;
 }
 
+export type ListModelsOptions = {
+    baseUrl?: string;
+}
+
 export class ModelFetcherService {
     // store your config
-    constructor(private config: ProviderConfig) { }
+    constructor(private config: ProviderKeysConfig) { }
 
     // Helper: throw if missing
     private ensure(key?: string, providerName = "unknown") {
@@ -236,10 +240,15 @@ export class ModelFetcherService {
         }));
     }
 
+
+
+
     /**
      * A unified method to list models for a given provider
      */
-    async listModels(provider: APIProviders): Promise<UnifiedModel[]> {
+    async listModels(provider: APIProviders, {
+        baseUrl
+    }: ListModelsOptions = {}): Promise<UnifiedModel[]> {
         switch (provider) {
             case "openrouter": {
                 const models = await this.listOpenRouterModels();
@@ -251,11 +260,11 @@ export class ModelFetcherService {
             }
 
             case "lmstudio": {
-                return this.listLMStudioModels();
+                return this.listLMStudioModels({ baseUrl });
             }
 
             case "ollama": {
-                return this.listOllamaModels();
+                return this.listOllamaModels({ baseUrl });
             }
 
             case "xai": {

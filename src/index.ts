@@ -13,5 +13,5 @@ export type { SSEEngineParams, SSEEngineHandlers, SSEMessage } from './streaming
 export type { ProviderPlugin } from './provider-plugin'
 
 export * from './constants/provider-defauls'
-export { ModelFetcherService, type ProviderConfig } from './models/model-fetcher-service'
+export { ModelFetcherService, type ProviderKeysConfig as ProviderConfig } from './models/model-fetcher-service'
 export * from './models/model-types'
