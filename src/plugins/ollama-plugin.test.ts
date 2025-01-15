@@ -2,6 +2,7 @@ import { describe, it, expect } from "bun:test";
 import { OllamaPlugin } from "./ollama-plugin";
 import type { SSEEngineParams } from "../streaming-types";
 import { createMockSSEStream } from "../create-mock-sse-stream";
+import { OLLAMA_BASE_URL } from "../constants/provider-defauls";
 
 describe("OllamaPlugin", () => {
     it("should parse SSE lines correctly and return content", async () => {
@@ -25,7 +26,7 @@ describe("OllamaPlugin", () => {
         (globalThis.fetch as unknown) = fakeFetch;
 
         try {
-            const plugin = new OllamaPlugin("http://localhost:11434");
+            const plugin = new OllamaPlugin(OLLAMA_BASE_URL);
             const params: SSEEngineParams = {
                 userMessage: "Test message",
                 plugin,
@@ -74,7 +75,7 @@ describe("OllamaPlugin", () => {
         (globalThis.fetch as unknown) = fakeFetch;
 
         try {
-            const plugin = new OllamaPlugin("http://localhost:11434");
+            const plugin = new OllamaPlugin(OLLAMA_BASE_URL);
             const params: SSEEngineParams = {
                 userMessage: "Test message",
                 plugin,
@@ -88,13 +89,13 @@ describe("OllamaPlugin", () => {
     });
 
     it("should handle invalid JSON in SSE data", () => {
-        const plugin = new OllamaPlugin("http://localhost:11434");
+        const plugin = new OllamaPlugin(OLLAMA_BASE_URL);
         const result = plugin.parseServerSentEvent("{invalid json}");
         expect(result).toBeNull();
     });
 
     it("should handle empty message content", () => {
-        const plugin = new OllamaPlugin("http://localhost:11434");
+        const plugin = new OllamaPlugin(OLLAMA_BASE_URL);
         const result = plugin.parseServerSentEvent(
             JSON.stringify({ message: { } })
         );

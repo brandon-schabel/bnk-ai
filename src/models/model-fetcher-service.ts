@@ -3,6 +3,11 @@ import {
     GEMINI_BASE_URL,
     GROQ_BASE_URL,
     TOGETHER_BASE_URL,
+    LMSTUDIO_BASE_URL,
+    OLLAMA_BASE_URL,
+    OPENROUTER_BASE_URL,
+    OPENAI_BASE_URL,
+    XAI_BASE_URL
 } from "../constants/provider-defauls";
 import type {
     UnifiedModel,
@@ -120,7 +125,7 @@ export class ModelFetcherService {
     // -----------------------------
     async listOpenAiModels(): Promise<OpenAIModelObject[]> {
         const openAIKey = this.ensure(this.config.openaiKey, "OpenAI");
-        const response = await fetch("https://api.openai.com/v1/models", {
+        const response = await fetch(`${OPENAI_BASE_URL}/models`, {
             method: "GET",
             headers: {
                 Authorization: `Bearer ${openAIKey}`,
@@ -162,14 +167,17 @@ export class ModelFetcherService {
     // -----------------------------
     // OPENROUTER EXAMPLE
     // -----------------------------
-    async listOpenRouterModels(): Promise<OpenRouterModel[]> {
+    async listOpenRouterModels({
+        headers
+    }: {
+        headers?: Record<string, string>
+    } = {}): Promise<OpenRouterModel[]> {
         const openRouterKey = this.ensure(this.config.openRouterKey, "OpenRouter");
-        const response = await fetch("https://openrouter.ai/api/v1/models", {
+        const response = await fetch(`${OPENROUTER_BASE_URL}/models`, {
             method: "GET",
             headers: {
+                ...headers,
                 Authorization: `Bearer ${openRouterKey}`,
-                "HTTP-Referer": "http://localhost:3579",
-                "X-Title": "OctoPrompt",
             },
         });
 
@@ -187,7 +195,7 @@ export class ModelFetcherService {
     // -----------------------------
     async listXAIModels(): Promise<OpenAIModelObject[]> {
         const xaiKey = this.ensure(this.config.xaiKey, "XAI");
-        const response = await fetch("https://api.x.ai/v1/models", {
+        const response = await fetch(`${XAI_BASE_URL}/models`, {
             method: "GET",
             headers: {
                 "Content-Type": "application/json",
@@ -207,7 +215,7 @@ export class ModelFetcherService {
     // -----------------------------
     // OLLAMA EXAMPLE
     // -----------------------------
-    async listOllamaModels({ baseUrl }: { baseUrl: string } = { baseUrl: "http://localhost:11434" }): Promise<UnifiedModel[]> {
+    async listOllamaModels({ baseUrl }: { baseUrl: string } = { baseUrl: OLLAMA_BASE_URL }): Promise<UnifiedModel[]> {
         const response = await fetch(`${baseUrl}/api/tags`);
         if (!response.ok) {
             const errorText = await response.text();
@@ -225,7 +233,7 @@ export class ModelFetcherService {
     // -----------------------------
     // LMSTUDIO EXAMPLE
     // -----------------------------
-    async listLMStudioModels({ baseUrl }: { baseUrl: string } = { baseUrl: "http://localhost:1234" }): Promise<UnifiedModel[]> {
+    async listLMStudioModels({ baseUrl }: { baseUrl: string } = { baseUrl: LMSTUDIO_BASE_URL }): Promise<UnifiedModel[]> {
         const response = await fetch(`${baseUrl}/models`);
         if (!response.ok) {
             const errorText = await response.text();
@@ -260,11 +268,11 @@ export class ModelFetcherService {
             }
 
             case "lmstudio": {
-                return this.listLMStudioModels({ baseUrl });
+                return this.listLMStudioModels({ baseUrl: baseUrl || LMSTUDIO_BASE_URL });
             }
 
             case "ollama": {
-                return this.listOllamaModels({ baseUrl });
+                return this.listOllamaModels({ baseUrl: baseUrl || OLLAMA_BASE_URL });
             }
 
             case "xai": {

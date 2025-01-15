@@ -1,3 +1,4 @@
+import { OLLAMA_BASE_URL } from "../constants/provider-defauls";
 import type { ProviderPlugin } from "../provider-plugin";
 import type { SSEEngineParams } from "../streaming-types";
 
@@ -5,7 +6,7 @@ import type { SSEEngineParams } from "../streaming-types";
 export class OllamaPlugin implements ProviderPlugin {
     private baseUrl: string;
 
-    constructor(baseUrl: string) {
+    constructor(baseUrl: string = OLLAMA_BASE_URL) {
         this.baseUrl = baseUrl;
     }
 

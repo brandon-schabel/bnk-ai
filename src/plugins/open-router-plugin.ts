@@ -1,3 +1,4 @@
+import { OPENROUTER_BASE_URL } from "../constants/provider-defauls";
 import type { ProviderPlugin } from "../provider-plugin";
 import type { SSEEngineParams } from "../streaming-types";
 
@@ -29,12 +30,10 @@ export class OpenRouterPlugin implements ProviderPlugin {
 
         const model = options?.model || "deepseek/deepseek-chat";
 
-        const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
             method: "POST",
             headers: {
                 Authorization: `Bearer ${this.apiKey}`,
-                "HTTP-Referer": "http://localhost:3579",
-                "X-Title": "OctoPrompt",
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
