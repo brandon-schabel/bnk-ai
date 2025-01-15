@@ -1,10 +1,11 @@
-import type { ProviderPlugin } from "../provider-plugin";
+import type { ProviderPlugin, SSEDelimiter } from "../provider-plugin";
 import type { SSEEngineParams } from "../streaming-types";
 
 export class GeminiPlugin implements ProviderPlugin {
     private geminiApiKey: string;
     private geminiBaseUrl: string;
     private modelId: string;
+    public readonly delimiter: SSEDelimiter = '\n\n';
 
     constructor(
         geminiApiKey: string,

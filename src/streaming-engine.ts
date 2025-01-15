@@ -79,28 +79,30 @@ export async function createSSEStream(params: SSEEngineParams): Promise<Readable
                     const { done, value } = await reader.read();
                     if (done) break;
 
-                    // Decode chunk
                     const chunk = decoder.decode(value, { stream: true });
                     buffer += chunk;
+                    
+                    // Use the plugin's delimiter to split events
+                    const events = buffer.split(plugin.delimiter ?? '\n\n');
+                    // Keep the last potentially incomplete event in the buffer
+                    buffer = events.pop() ?? "";
 
-                    // Split SSE events by double-newline
-                    const events = buffer.split("\n\n");
-                    buffer = events.pop() ?? ""; // leftover partial event
-
-                    // Process each SSE event
                     for (const event of events) {
-                        // Split each event by newline, ignoring comment lines
+                        if (!event.trim()) continue;
+                        
                         const lines = event
                             .split("\n")
-                            .map(line => line.trim())
-                            .filter(line => !!line && !line.startsWith(":"));
+                            .map(line => line.trim());
 
-                        if (lines.length === 0) {
+                        // filter out comment lines or empty
+                        const filteredLines = lines.filter(line => !!line && !line.startsWith(":"));
+
+                        if (!filteredLines.length) {
                             continue;
                         }
 
                         let eventText = "";
-                        for (const line of lines) {
+                        for (const line of filteredLines) {
                             const parsedText = plugin.parseServerSentEvent(line);
 
                             if (parsedText === "[DONE]") {

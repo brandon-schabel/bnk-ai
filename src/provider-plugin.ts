@@ -1,4 +1,6 @@
-import type { SSEEngineParams } from ".//streaming-types";
+import type { SSEEngineParams } from "./streaming-types";
+
+export type SSEDelimiter = '\n' | '\n\n';
 
 export interface ProviderPlugin {
     /**
@@ -9,9 +11,14 @@ export interface ProviderPlugin {
 
     /**
      * Given a line or chunk from the SSE, parse out the relevant text
-     * to be appended to the user’s message. 
+     * to be appended to the user's message. 
      * Return null or empty string if the line doesn't contain displayable text.
      * Return the special string `[DONE]` or something equivalent if this chunk signals the end.
      */
     parseServerSentEvent(line: string): string | null;
+
+    /**
+     * The delimiter used by this provider's SSE implementation
+     */
+    readonly delimiter: SSEDelimiter;
 }

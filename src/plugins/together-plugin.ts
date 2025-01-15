@@ -1,10 +1,11 @@
 import { TOGETHER_BASE_URL } from "../constants/provider-defauls";
-import type { ProviderPlugin } from "../provider-plugin";
+import type { ProviderPlugin, SSEDelimiter } from "../provider-plugin";
 import type { SSEEngineParams } from "../streaming-types";
 
 export class TogetherPlugin implements ProviderPlugin {
     private apiKey: string;
     private baseUrl: string;
+    public readonly delimiter: SSEDelimiter = '\n\n';
 
     constructor(apiKey: string, baseUrl?: string) {
         this.apiKey = apiKey;

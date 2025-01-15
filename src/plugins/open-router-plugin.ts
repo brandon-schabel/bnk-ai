@@ -1,5 +1,5 @@
 import { OPENROUTER_BASE_URL } from "../constants/provider-defauls";
-import type { ProviderPlugin } from "../provider-plugin";
+import type { ProviderPlugin, SSEDelimiter } from "../provider-plugin";
 import type { SSEEngineParams } from "../streaming-types";
 
 type OpenRouterStreamResponse = {
@@ -12,6 +12,7 @@ type OpenRouterStreamResponse = {
 export class OpenRouterPlugin implements ProviderPlugin {
     private apiKey: string;
     private systemMessage?: string;
+    public readonly delimiter: SSEDelimiter = '\n\n';
 
     constructor(apiKey: string, systemMessage?: string) {
         this.apiKey = apiKey;

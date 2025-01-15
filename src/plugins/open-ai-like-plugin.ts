@@ -1,10 +1,11 @@
-import type { ProviderPlugin } from "../provider-plugin";
+import type { ProviderPlugin, SSEDelimiter } from "../provider-plugin";
 import OpenAI from "openai";
 import type { SSEEngineParams } from "../streaming-types";
 
 export class OpenAiLikePlugin implements ProviderPlugin {
     private client: OpenAI;
     private defaultModel: string;
+    public readonly delimiter: SSEDelimiter = '\n\n';
 
     constructor(client: OpenAI, defaultModel: string) {
         this.client = client;

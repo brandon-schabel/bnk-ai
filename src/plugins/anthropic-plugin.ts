@@ -1,4 +1,4 @@
-import type { ProviderPlugin } from "../provider-plugin";
+import type { ProviderPlugin, SSEDelimiter } from "../provider-plugin";
 import type { SSEEngineParams } from "../streaming-types";
 
 interface AnthropicStreamResponse {
@@ -20,6 +20,7 @@ export class AnthropicPlugin implements ProviderPlugin {
     private apiKey: string;
     private version: string;
     private beta?: string;
+    public readonly delimiter: SSEDelimiter = '\n\n';
 
     constructor(apiKey: string, version: string, beta?: string) {
         this.apiKey = apiKey;

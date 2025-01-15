@@ -12,8 +12,8 @@ describe("OllamaPlugin", () => {
                 status: 200,
                 body: createMockSSEStream(
                     [
-                        JSON.stringify({ message: { content: "Hello " } }),
-                        JSON.stringify({ message: { content: "world!" } })
+                        JSON.stringify({ response: "Hello " }),
+                        JSON.stringify({ response: "world!" })
                     ],
                     {
                         endWithDone: true,
@@ -43,19 +43,17 @@ describe("OllamaPlugin", () => {
                 fullString += decoder.decode(value);
             }
 
-            // Test parseServerSentEvent logic
             const partial1 = plugin.parseServerSentEvent(
-                JSON.stringify({ message: { content: "Hello " } })
+                JSON.stringify({ response: "Hello " })
             );
             const partial2 = plugin.parseServerSentEvent(
-                JSON.stringify({ message: { content: "world!" } })
+                JSON.stringify({ response: "world!" })
             );
 
             expect(partial1).toBe("Hello ");
             expect(partial2).toBe("world!");
 
-            // Verify the raw SSE output
-            expect(fullString).toContain("data: {\"message\":{\"content\":\"Hello ");
+            expect(fullString).toContain("data: {\"response\":\"Hello ");
             expect(fullString).toContain("world!");
         } finally {
             globalThis.fetch = originalFetch;

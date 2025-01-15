@@ -254,9 +254,6 @@ export class ModelFetcherService {
         }));
     }
 
-
-
-
     /**
      * A unified method to list models for a given provider
      */
