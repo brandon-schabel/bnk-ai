@@ -64,4 +64,10 @@ export interface SSEEngineParams {
      * These can do e.g. database updates, broadcast events, etc.
      */
     handlers: SSEEngineHandlers;
+
+    /**
+     * Optional debug flag. If `true`, the engine and plugins will log
+     * additional information to the console for troubleshooting.
+     */
+    debug?: boolean;
 }

@@ -4,6 +4,7 @@ export { GroqPlugin } from './plugins/groq-plugin'
 export { OllamaPlugin } from './plugins/ollama-plugin'
 export { OpenAiLikePlugin } from './plugins/open-ai-like-plugin'
 export { OpenRouterPlugin } from './plugins/open-router-plugin'
+export { OpenRouterStructuredPlugin } from './plugins/open-router-structured-plugin'
 export { TogetherPlugin } from './plugins/together-plugin'
 
 export { createSSEStream } from './streaming-engine'

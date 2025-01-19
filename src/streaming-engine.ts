@@ -1,14 +1,20 @@
 import type { SSEEngineParams } from "./streaming-types";
 
-/**
- * Create a streaming SSE with the given plugin + params + handlers.
- * This function does NOT know anything about ChatService or other external concerns.
- * All updates go out via the handlers/callbacks.
- */
-export async function createSSEStream(params: SSEEngineParams): Promise<ReadableStream<Uint8Array>> {
-    const { plugin, systemMessage, userMessage, handlers, options } = params;
+export async function createSSEStream(
+    params: SSEEngineParams
+): Promise<ReadableStream<Uint8Array>> {
+    const { plugin, systemMessage, userMessage, handlers, options, debug } = params;
+
+    if (debug) {
+        console.debug("[createSSEStream] Starting SSE stream with plugin:", plugin.constructor.name);
+        console.debug("[createSSEStream] System message:", systemMessage);
+        console.debug("[createSSEStream] User message:", userMessage);
+        console.debug("[createSSEStream] Options:", options);
+    }
 
     let streamOrReader: ReadableStream<Uint8Array> | ReadableStreamDefaultReader<Uint8Array>;
+
+    // 1) Prepare the request via the plugin
     try {
         streamOrReader = await plugin.prepareRequest({
             userMessage,
@@ -16,16 +22,23 @@ export async function createSSEStream(params: SSEEngineParams): Promise<Readable
             options,
             handlers,
             plugin,
+            debug, // Pass debug flag to plugin
         });
+        if (debug) {
+            console.debug("[createSSEStream] Request prepared successfully.");
+        }
     } catch (error) {
-        // If the plugin fails immediately, call onError
+        // If plugin fails immediately, call onError
         if (handlers.onError) {
             handlers.onError(error, {
                 role: "assistant",
-                content: "", // or partial content if any
+                content: "",
             });
         }
-        // Return an empty closed stream so the caller can still consume something
+        if (debug) {
+            console.debug("[createSSEStream] Plugin threw an error before streaming:", error);
+        }
+        // Return an empty closed stream
         return new ReadableStream<Uint8Array>({
             start(controller) {
                 controller.close();
@@ -33,95 +46,86 @@ export async function createSSEStream(params: SSEEngineParams): Promise<Readable
         });
     }
 
-    // Fire off system message handler if present
+    // 2) Fire system/user message handlers
     if (systemMessage && handlers.onSystemMessage) {
-        handlers.onSystemMessage({
-            role: "system",
-            content: systemMessage,
-        });
+        handlers.onSystemMessage({ role: "system", content: systemMessage });
     }
-
-    // Fire off user message handler if present
     if (handlers.onUserMessage) {
-        handlers.onUserMessage({
-            role: "user",
-            content: userMessage,
-        });
+        handlers.onUserMessage({ role: "user", content: userMessage });
     }
 
-    // Prepare the SSE request with the plugin
-    // const streamOrReader = await plugin.prepareRequest({
-    //     userMessage,
-    //     options: options ?? {},
-    //     plugin,
-    //     handlers,
-    //     systemMessage
-    //     // If your plugin needs more, pass them here
-    //     // chatId: "",
-    //     // assistantMessageId: "",
-    // });
-
-    // unify the reader (some plugins return a ReadableStream, others return a Reader directly)
+    // 3) Normalize the reader
     const reader =
         streamOrReader instanceof ReadableStream
             ? streamOrReader.getReader()
             : streamOrReader;
 
+    // We'll accumulate all partial text in a string so that onDone can see the full text
+    let fullResponse = "";
+    let buffer = "";
+
     const decoder = new TextDecoder();
     const encoder = new TextEncoder();
-    let fullResponse = ""; // accumulate all assistant text for onDone
-    let buffer = "";
 
     return new ReadableStream<Uint8Array>({
         async start(controller) {
+            if (debug) {
+                console.debug("[createSSEStream] Beginning to read from SSE stream/reader.");
+            }
             try {
                 while (true) {
                     const { done, value } = await reader.read();
-                    if (done) break;
+                    if (done) {
+                        if (debug) {
+                            console.debug("[createSSEStream] Reader returned done, ending loop.");
+                        }
+                        break;
+                    }
 
                     const chunk = decoder.decode(value, { stream: true });
                     buffer += chunk;
-                    
-                    // Use the plugin's delimiter to split events
-                    const events = buffer.split(plugin.delimiter ?? '\n\n');
-                    // Keep the last potentially incomplete event in the buffer
+
+                    // Use the plugin's delimiter to split events, e.g. "\n\n"
+                    const events = buffer.split(plugin.delimiter ?? "\n\n");
+                    // Keep the last incomplete piece in buffer
                     buffer = events.pop() ?? "";
 
+                    if (debug) {
+                        console.debug("[createSSEStream] Received chunk:", chunk);
+                        console.debug("[createSSEStream] Split into events:", events);
+                    }
+
                     for (const event of events) {
-                        if (!event.trim()) continue;
-                        
-                        const lines = event
-                            .split("\n")
-                            .map(line => line.trim());
+                        const trimmed = event.trim();
+                        if (!trimmed) continue;
 
-                        // filter out comment lines or empty
-                        const filteredLines = lines.filter(line => !!line && !line.startsWith(":"));
-
-                        if (!filteredLines.length) {
-                            continue;
-                        }
+                        // Each "event" may contain multiple lines
+                        const lines = trimmed.split("\n").map((ln) => ln.trim());
+                        // Filter out comment lines or empty lines
+                        const sseLines = lines.filter((ln) => ln && !ln.startsWith(":"));
 
                         let eventText = "";
-                        for (const line of filteredLines) {
-                            const parsedText = plugin.parseServerSentEvent(line);
-
-                            if (parsedText === "[DONE]") {
-                                // SSE end marker
+                        for (const sseLine of sseLines) {
+                            const parsed = plugin.parseServerSentEvent(sseLine);
+                            if (parsed === "[DONE]") {
+                                // If we see the done marker, final callback
                                 if (handlers.onDone) {
                                     handlers.onDone({
                                         role: "assistant",
                                         content: fullResponse,
                                     });
                                 }
+                                if (debug) {
+                                    console.debug("[createSSEStream] Received [DONE] event, closing stream.");
+                                }
                                 controller.close();
                                 return;
                             }
-                            if (parsedText) {
-                                eventText += parsedText;
+                            if (parsed) {
+                                eventText += parsed;
                             }
                         }
 
-                        // If there was text in this event, append to full and call partial
                         if (eventText) {
                             fullResponse += eventText;
                             controller.enqueue(encoder.encode(eventText));
@@ -132,54 +136,67 @@ export async function createSSEStream(params: SSEEngineParams): Promise<Readable
                                     content: eventText,
                                 });
                             }
+                            if (debug) {
+                                console.debug("[createSSEStream] Emitted partial text:", eventText);
+                            }
                         }
                     }
                 }
 
-                // Handle leftover partial event in the buffer
-                if (buffer.trim()) {
-                    const lines = buffer
-                        .split("\n")
-                        .map(line => line.trim())
-                        .filter(line => !!line && !line.startsWith(":"));
-
+                // If buffer has leftover partial event, handle it
+                const leftover = buffer.trim();
+                if (leftover) {
+                    if (debug) {
+                        console.debug("[createSSEStream] Handling leftover buffer:", leftover);
+                    }
+                    const lines = leftover.split("\n").map((l) => l.trim());
                     let leftoverText = "";
+
                     for (const line of lines) {
-                        const parsedText = plugin.parseServerSentEvent(line);
-                        if (parsedText === "[DONE]") {
+                        if (line.startsWith(":")) continue;
+                        const parsed = plugin.parseServerSentEvent(line);
+                        if (parsed === "[DONE]") {
                             if (handlers.onDone) {
                                 handlers.onDone({
                                     role: "assistant",
                                     content: fullResponse,
                                 });
                             }
+                            if (debug) {
+                                console.debug("[createSSEStream] Received [DONE] in leftover, closing stream.");
+                            }
                             controller.close();
                             return;
                         }
-                        if (parsedText) {
-                            leftoverText += parsedText;
+                        if (parsed) {
+                            leftoverText += parsed;
                         }
                     }
 
                     if (leftoverText) {
                         fullResponse += leftoverText;
                         controller.enqueue(encoder.encode(leftoverText));
-
                         if (handlers.onPartial) {
                             handlers.onPartial({
                                 role: "assistant",
                                 content: leftoverText,
                             });
                         }
+                        if (debug) {
+                            console.debug("[createSSEStream] Emitted leftover partial text:", leftoverText);
+                        }
                     }
                 }
 
-                // Done reading; finalize
+                // Finally, call onDone if not done yet
                 if (handlers.onDone) {
                     handlers.onDone({
                         role: "assistant",
                         content: fullResponse,
                     });
+                }
+                if (debug) {
+                    console.debug("[createSSEStream] Streaming complete, closing controller.");
                 }
                 controller.close();
             } catch (error) {
@@ -189,6 +206,9 @@ export async function createSSEStream(params: SSEEngineParams): Promise<Readable
                         role: "assistant",
                         content: fullResponse,
                     });
+                }
+                if (debug) {
+                    console.debug("[createSSEStream] Caught error in read loop:", error);
                 }
             }
         },

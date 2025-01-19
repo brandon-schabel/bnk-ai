@@ -20,7 +20,11 @@ export class OpenRouterPlugin implements ProviderPlugin {
     }
 
     async prepareRequest(params: SSEEngineParams) {
-        const { userMessage, options } = params;
+        const { userMessage, options, debug } = params;
+
+        if (debug) {
+            console.debug("[OpenRouterPlugin] prepareRequest called with userMessage:", userMessage);
+        }
 
         // Build messages array
         const messages = [];
@@ -30,6 +34,16 @@ export class OpenRouterPlugin implements ProviderPlugin {
         messages.push({ role: "user", content: userMessage });
 
         const model = options?.model || "deepseek/deepseek-chat";
+
+        if (debug) {
+            console.debug("[OpenRouterPlugin] Using model:", model);
+            console.debug("[OpenRouterPlugin] Fetch body:", {
+                model,
+                messages,
+                stream: true,
+                ...options,
+            });
+        }
 
         const response = await fetch(`${OPENROUTER_BASE_URL}/chat/completions`, {
             method: "POST",
@@ -47,13 +61,29 @@ export class OpenRouterPlugin implements ProviderPlugin {
 
         if (!response.ok || !response.body) {
             const errorText = await response.text();
+            if (debug) {
+                console.debug("[OpenRouterPlugin] Non-OK response:", response.status, errorText);
+            }
             throw new Error(`OpenRouter API error: ${response.statusText} - ${errorText}`);
         }
 
-        return response.body.getReader() as ReadableStreamDefaultReader<Uint8Array>
+        if (debug) {
+            console.debug("[OpenRouterPlugin] Successfully received readable stream from OpenRouter.");
+        }
+
+        // Return the reader
+        return response.body.getReader() as ReadableStreamDefaultReader<Uint8Array>;
     }
 
     parseServerSentEvent(line: string): string | null {
+        // If you want to see each line in debug mode:
+        // The only complication: we don't have direct access to `debug` here
+        // unless we store it, but let's demonstrate a possible approach:
+        // (In a real codebase, you might store `debug` on the class instance
+        // or pass it in parseServerSentEvent() each time.)
+        // For clarity, we won't do it here. If needed, set up a pattern
+        // to store `debug` in the plugin instance or pass it in from the engine.
+
         if (!line.startsWith("data:")) return null;
         const jsonString = line.replace(/^data:\s*/, "").trim();
 

@@ -8,13 +8,15 @@ import type { ProviderPlugin } from "./provider-plugin";
  * We'll create a fake SSE sequence that sends two partial chunks and then a [DONE] line.
  */
 class MockPlugin implements ProviderPlugin {
+    public readonly delimiter = "\n\n";
+
     async prepareRequest(): Promise<ReadableStream<Uint8Array>> {
         // Create an artificial SSE stream that sends two chunks and a [DONE] signal
         const { readable, writable } = new TransformStream();
         const writer = writable.getWriter();
         const encoder = new TextEncoder();
 
-        // Simulate SSE lines
+        // Simulate SSE lines:
         //  - data: "Hello"
         //  - data: " world!"
         //  - data: [DONE]
@@ -41,6 +43,84 @@ class MockPlugin implements ProviderPlugin {
             return JSON.parse(payload);
         } catch {
             return payload;
+        }
+    }
+}
+
+/**
+ * Additional plugin that simulates SSE lines containing "message.parsed" for structured output testing.
+ */
+class MockStructuredPlugin implements ProviderPlugin {
+    public readonly delimiter = "\n\n";
+
+    async prepareRequest(): Promise<ReadableStream<Uint8Array>> {
+        // Artificial SSE stream that returns two partial "parsed" messages and then [DONE]
+        const { readable, writable } = new TransformStream();
+        const writer = writable.getWriter();
+        const encoder = new TextEncoder();
+
+        (async () => {
+            // data: {"choices":[{"message":{"parsed":{"location":"Paris","temperature":25,"conditions":"Sunny"}}}]}
+            const chunk1 = {
+                choices: [
+                    {
+                        message: {
+                            parsed: {
+                                location: "Paris",
+                                temperature: 25,
+                                conditions: "Sunny",
+                            },
+                        },
+                    },
+                ],
+            };
+            // data: {"choices":[{"message":{"parsed":{"location":"Paris","temperature":26,"conditions":"Mostly sunny"}}}]}
+            const chunk2 = {
+                choices: [
+                    {
+                        message: {
+                            parsed: {
+                                location: "Paris",
+                                temperature: 26,
+                                conditions: "Mostly sunny",
+                            },
+                        },
+                    },
+                ],
+            };
+
+            await writer.write(
+                encoder.encode(`data: ${JSON.stringify(chunk1)}\n\n`)
+            );
+            await writer.write(
+                encoder.encode(`data: ${JSON.stringify(chunk2)}\n\n`)
+            );
+            await writer.write(encoder.encode("data: [DONE]\n\n"));
+            writer.close();
+        })();
+
+        return readable;
+    }
+
+    parseServerSentEvent(line: string): string | null {
+        if (!line.startsWith("data:")) return null;
+        const jsonString = line.replace(/^data:\s*/, "").trim();
+
+        if (jsonString === "[DONE]") {
+            return "[DONE]";
+        }
+        try {
+            const parsed = JSON.parse(jsonString);
+            const choice = parsed.choices?.[0];
+            if (!choice) return null;
+
+            if (choice.message?.parsed) {
+                // Return the parsed object as string
+                return JSON.stringify(choice.message.parsed);
+            }
+            return null;
+        } catch {
+            return null;
         }
     }
 }
@@ -114,7 +194,9 @@ describe("createSSEStream", () => {
             async prepareRequest() {
                 throw new Error("Simulated stream error");
             }
-            parseServerSentEvent() { return null; }
+            parseServerSentEvent() {
+                return null;
+            }
         }
 
         let onErrorCalled = false;
@@ -139,5 +221,49 @@ describe("createSSEStream", () => {
 
         expect(onErrorCalled).toBe(true);
         expect(partialSoFar).toBe("");
+    });
+
+    /**
+     * NEW TEST: Demonstrates structured outputs flowing through the streaming engine.
+     * We simulate SSE lines returning partial JSON objects via `message.parsed`.
+     */
+    it("should handle structured output scenario", async () => {
+        let partials: string[] = [];
+        let finalFullContent = "";
+
+        const handlers: SSEEngineHandlers = {
+            onPartial: (msg) => {
+                partials.push(msg.content);
+            },
+            onDone: (msg) => {
+                finalFullContent = msg.content;
+            },
+        };
+
+        const params: SSEEngineParams = {
+            userMessage: "Give me structured weather info",
+            plugin: new MockStructuredPlugin(),
+            handlers,
+        };
+
+        const stream = await createSSEStream(params);
+        const reader = stream.getReader();
+
+        // Consume the stream
+        let s: ReadableStreamDefaultReadResult<Uint8Array>;
+        do {
+            s = await reader.read();
+        } while (!s.done);
+
+        // partials should have two JSON strings
+        // 1) {"location":"Paris","temperature":25,"conditions":"Sunny"}
+        // 2) {"location":"Paris","temperature":26,"conditions":"Mostly sunny"}
+        expect(partials.length).toBe(2);
+
+        // The final full content is just the concatenation of the partial strings
+        // Because the streaming-engine accumulates them as text
+        expect(finalFullContent).toContain("\"location\":\"Paris\"");
+        expect(finalFullContent).toContain("\"temperature\":25");
+        expect(finalFullContent).toContain("\"temperature\":26");
     });
 });
