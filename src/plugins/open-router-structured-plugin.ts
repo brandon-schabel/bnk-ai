@@ -50,6 +50,9 @@ export class OpenRouterStructuredPlugin implements ProviderPlugin {
         // The SSEEngineParams includes systemMessage, userMessage, and any provider-specific options.
         const { userMessage, systemMessage, options } = params;
 
+        const referrer = options?.referrer
+        const title = options?.title
+
         // Build the array of messages. 
         // Notice we do not store a "this.systemMessage"; we read it from params so it's always fresh.
         const messages: Array<{ role: string; content: string }> = [];
@@ -83,8 +86,8 @@ export class OpenRouterStructuredPlugin implements ProviderPlugin {
             headers: {
                 Authorization: `Bearer ${this.apiKey}`,
                 "Content-Type": "application/json",
-                ...(params.referrer && { "HTTP-Referer": params.referrer }),
-                ...(params.title && { "X-Title": params.title }),
+                ...(referrer && { "HTTP-Referer": referrer }),
+                ...(title && { "X-Title": title }),
             },
             body: JSON.stringify(body),
         });

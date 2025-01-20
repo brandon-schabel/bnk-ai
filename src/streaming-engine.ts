@@ -1,11 +1,24 @@
-import type { SSEEngineParams } from "./streaming-types";
+import type { DebugOptions, SSEEngineParams } from "./streaming-types";
+
+/**
+ * Helper to determine if a specific debug category is enabled.
+ * If `debug` is `true` (boolean), we enable everything.
+ * If `debug` is an object, check `debug.all` or the specific category.
+ */
+function isDebugEnabled(debug: boolean | DebugOptions | undefined, category: keyof DebugOptions): boolean {
+    if (!debug) return false;
+    if (typeof debug === "boolean") return debug; // if `true`, all debug is on
+    return !!debug.all || !!debug[category];
+}
+
 
 export async function createSSEStream(
     params: SSEEngineParams
 ): Promise<ReadableStream<Uint8Array>> {
     const { plugin, systemMessage, userMessage, handlers, options, debug } = params;
 
-    if (debug) {
+    // Instead of just `if(debug)`, we use the helper with a category
+    if (isDebugEnabled(debug, "plugin")) {
         console.debug("[createSSEStream] Starting SSE stream with plugin:", plugin.constructor.name);
         console.debug("[createSSEStream] System message:", systemMessage);
         console.debug("[createSSEStream] User message:", userMessage);
@@ -14,7 +27,6 @@ export async function createSSEStream(
 
     let streamOrReader: ReadableStream<Uint8Array> | ReadableStreamDefaultReader<Uint8Array>;
 
-    // 1) Prepare the request via the plugin
     try {
         streamOrReader = await plugin.prepareRequest({
             userMessage,
@@ -22,23 +34,21 @@ export async function createSSEStream(
             options,
             handlers,
             plugin,
-            debug, // Pass debug flag to plugin
+            debug, // pass the whole debug config on
         });
-        if (debug) {
+        if (isDebugEnabled(debug, "plugin")) {
             console.debug("[createSSEStream] Request prepared successfully.");
         }
     } catch (error) {
-        // If plugin fails immediately, call onError
         if (handlers.onError) {
             handlers.onError(error, {
                 role: "assistant",
                 content: "",
             });
         }
-        if (debug) {
+        if (isDebugEnabled(debug, "plugin")) {
             console.debug("[createSSEStream] Plugin threw an error before streaming:", error);
         }
-        // Return an empty closed stream
         return new ReadableStream<Uint8Array>({
             start(controller) {
                 controller.close();
@@ -46,7 +56,6 @@ export async function createSSEStream(
         });
     }
 
-    // 2) Fire system/user message handlers
     if (systemMessage && handlers.onSystemMessage) {
         handlers.onSystemMessage({ role: "system", content: systemMessage });
     }
@@ -54,13 +63,10 @@ export async function createSSEStream(
         handlers.onUserMessage({ role: "user", content: userMessage });
     }
 
-    // 3) Normalize the reader
-    const reader =
-        streamOrReader instanceof ReadableStream
-            ? streamOrReader.getReader()
-            : streamOrReader;
+    const reader = streamOrReader instanceof ReadableStream
+        ? streamOrReader.getReader()
+        : streamOrReader;
 
-    // We'll accumulate all partial text in a string so that onDone can see the full text
     let fullResponse = "";
     let buffer = "";
 
@@ -69,14 +75,14 @@ export async function createSSEStream(
 
     return new ReadableStream<Uint8Array>({
         async start(controller) {
-            if (debug) {
+            if (isDebugEnabled(debug, "sse")) {
                 console.debug("[createSSEStream] Beginning to read from SSE stream/reader.");
             }
             try {
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) {
-                        if (debug) {
+                        if (isDebugEnabled(debug, "sse")) {
                             console.debug("[createSSEStream] Reader returned done, ending loop.");
                         }
                         break;
@@ -85,12 +91,10 @@ export async function createSSEStream(
                     const chunk = decoder.decode(value, { stream: true });
                     buffer += chunk;
 
-                    // Use the plugin's delimiter to split events, e.g. "\n\n"
                     const events = buffer.split(plugin.delimiter ?? "\n\n");
-                    // Keep the last incomplete piece in buffer
                     buffer = events.pop() ?? "";
 
-                    if (debug) {
+                    if (isDebugEnabled(debug, "sse")) {
                         console.debug("[createSSEStream] Received chunk:", chunk);
                         console.debug("[createSSEStream] Split into events:", events);
                     }
@@ -99,23 +103,20 @@ export async function createSSEStream(
                         const trimmed = event.trim();
                         if (!trimmed) continue;
 
-                        // Each "event" may contain multiple lines
                         const lines = trimmed.split("\n").map((ln) => ln.trim());
-                        // Filter out comment lines or empty lines
                         const sseLines = lines.filter((ln) => ln && !ln.startsWith(":"));
 
                         let eventText = "";
                         for (const sseLine of sseLines) {
                             const parsed = plugin.parseServerSentEvent(sseLine);
                             if (parsed === "[DONE]") {
-                                // If we see the done marker, final callback
                                 if (handlers.onDone) {
                                     handlers.onDone({
                                         role: "assistant",
                                         content: fullResponse,
                                     });
                                 }
-                                if (debug) {
+                                if (isDebugEnabled(debug, "sse")) {
                                     console.debug("[createSSEStream] Received [DONE] event, closing stream.");
                                 }
                                 controller.close();
@@ -136,17 +137,16 @@ export async function createSSEStream(
                                     content: eventText,
                                 });
                             }
-                            if (debug) {
+                            if (isDebugEnabled(debug, "sse")) {
                                 console.debug("[createSSEStream] Emitted partial text:", eventText);
                             }
                         }
                     }
                 }
 
-                // If buffer has leftover partial event, handle it
                 const leftover = buffer.trim();
                 if (leftover) {
-                    if (debug) {
+                    if (isDebugEnabled(debug, "sse")) {
                         console.debug("[createSSEStream] Handling leftover buffer:", leftover);
                     }
                     const lines = leftover.split("\n").map((l) => l.trim());
@@ -162,7 +162,7 @@ export async function createSSEStream(
                                     content: fullResponse,
                                 });
                             }
-                            if (debug) {
+                            if (isDebugEnabled(debug, "sse")) {
                                 console.debug("[createSSEStream] Received [DONE] in leftover, closing stream.");
                             }
                             controller.close();
@@ -182,20 +182,19 @@ export async function createSSEStream(
                                 content: leftoverText,
                             });
                         }
-                        if (debug) {
+                        if (isDebugEnabled(debug, "sse")) {
                             console.debug("[createSSEStream] Emitted leftover partial text:", leftoverText);
                         }
                     }
                 }
 
-                // Finally, call onDone if not done yet
                 if (handlers.onDone) {
                     handlers.onDone({
                         role: "assistant",
                         content: fullResponse,
                     });
                 }
-                if (debug) {
+                if (isDebugEnabled(debug, "sse")) {
                     console.debug("[createSSEStream] Streaming complete, closing controller.");
                 }
                 controller.close();
@@ -207,7 +206,7 @@ export async function createSSEStream(
                         content: fullResponse,
                     });
                 }
-                if (debug) {
+                if (isDebugEnabled(debug, "sse")) {
                     console.debug("[createSSEStream] Caught error in read loop:", error);
                 }
             }

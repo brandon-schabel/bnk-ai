@@ -20,7 +20,10 @@ export class OpenRouterPlugin implements ProviderPlugin {
     }
 
     async prepareRequest(params: SSEEngineParams) {
-        const { userMessage, options, debug, referrer, title } = params;
+        const { userMessage, options, debug, } = params;
+
+        const referrer = options?.referrer
+        const title = options?.title
 
         if (debug) {
             console.debug("[OpenRouterPlugin] prepareRequest called with userMessage:", userMessage);

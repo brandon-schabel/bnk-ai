@@ -43,6 +43,16 @@ export interface SSEEngineHandlers {
     onError?: (error: unknown, partialSoFar: SSEMessage) => void;
 }
 
+export interface DebugOptions {
+    /** Enable all debug messages. If `true`, overrides other flags. */
+    all?: boolean;
+    /** Debug messages related to plugin-level events, e.g. preparing requests. */
+    plugin?: boolean;
+    /** Debug messages specifically for SSE streaming output. */
+    sse?: boolean;
+}
+
+
 /**
  * The minimal set of input parameters the streaming engine needs.
  * Notice there's no ChatService or database references here.
@@ -59,12 +69,6 @@ export interface SSEEngineParams {
     /** Any other settings your plugin might need (model, temperature, etc.) */
     options?: Record<string, any>;
 
-    /** HTTP Referer header value for API requests */
-    referrer?: string;
-
-    /** Application title for API requests */
-    title?: string;
-
     /**
      * Handlers to drive updates back to the caller.  
      * These can do e.g. database updates, broadcast events, etc.
@@ -75,5 +79,5 @@ export interface SSEEngineParams {
      * Optional debug flag. If `true`, the engine and plugins will log
      * additional information to the console for troubleshooting.
      */
-    debug?: boolean;
+    debug?: boolean | DebugOptions;
 }
