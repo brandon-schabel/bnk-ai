@@ -20,7 +20,7 @@ export class OpenRouterPlugin implements ProviderPlugin {
     }
 
     async prepareRequest(params: SSEEngineParams) {
-        const { userMessage, options, debug } = params;
+        const { userMessage, options, debug, referrer, title } = params;
 
         if (debug) {
             console.debug("[OpenRouterPlugin] prepareRequest called with userMessage:", userMessage);
@@ -50,6 +50,8 @@ export class OpenRouterPlugin implements ProviderPlugin {
             headers: {
                 Authorization: `Bearer ${this.apiKey}`,
                 "Content-Type": "application/json",
+                ...(referrer && { "HTTP-Referer": referrer }),
+                ...(title && { "X-Title": title }),
             },
             body: JSON.stringify({
                 model,

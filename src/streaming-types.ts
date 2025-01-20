@@ -59,6 +59,12 @@ export interface SSEEngineParams {
     /** Any other settings your plugin might need (model, temperature, etc.) */
     options?: Record<string, any>;
 
+    /** HTTP Referer header value for API requests */
+    referrer?: string;
+
+    /** Application title for API requests */
+    title?: string;
+
     /**
      * Handlers to drive updates back to the caller.  
      * These can do e.g. database updates, broadcast events, etc.

@@ -14,7 +14,7 @@ import type {
 
 /**
  * This interface represents the JSON structure we might receive when
- * streaming from OpenRouter’s Chat Completions endpoint. Adjust to
+ * streaming from OpenRouter's Chat Completions endpoint. Adjust to
  * your actual usage.
  */
 interface OpenRouterStreamResponse {
@@ -51,7 +51,7 @@ export class OpenRouterStructuredPlugin implements ProviderPlugin {
         const { userMessage, systemMessage, options } = params;
 
         // Build the array of messages. 
-        // Notice we do not store a "this.systemMessage"; we read it from params so it’s always fresh.
+        // Notice we do not store a "this.systemMessage"; we read it from params so it's always fresh.
         const messages: Array<{ role: string; content: string }> = [];
         if (systemMessage) {
             messages.push({ role: "system", content: systemMessage });
@@ -83,6 +83,8 @@ export class OpenRouterStructuredPlugin implements ProviderPlugin {
             headers: {
                 Authorization: `Bearer ${this.apiKey}`,
                 "Content-Type": "application/json",
+                ...(params.referrer && { "HTTP-Referer": params.referrer }),
+                ...(params.title && { "X-Title": params.title }),
             },
             body: JSON.stringify(body),
         });
@@ -141,7 +143,7 @@ export class OpenRouterStructuredPlugin implements ProviderPlugin {
             // If no recognized content, return null
             return null;
         } catch {
-            // If it’s not valid JSON or doesn't match our pattern, ignore
+            // If it's not valid JSON or doesn't match our pattern, ignore
             return null;
         }
     }
