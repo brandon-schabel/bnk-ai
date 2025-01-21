@@ -81,6 +81,7 @@ export class OpenRouterStructuredPlugin implements ProviderPlugin {
 
         // Fire off the fetch
         const endpoint = "https://openrouter.ai/api/v1/chat/completions"; // Or your base
+
         const response = await fetch(endpoint, {
             method: "POST",
             headers: {

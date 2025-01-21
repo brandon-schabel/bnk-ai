@@ -11,16 +11,14 @@ type OpenRouterStreamResponse = {
 
 export class OpenRouterPlugin implements ProviderPlugin {
     private apiKey: string;
-    private systemMessage?: string;
     public readonly delimiter: SSEDelimiter = '\n\n';
 
     constructor(apiKey: string, systemMessage?: string) {
         this.apiKey = apiKey;
-        this.systemMessage = systemMessage;
     }
 
     async prepareRequest(params: SSEEngineParams) {
-        const { userMessage, options, debug, } = params;
+        const { userMessage, options, debug, systemMessage } = params;
 
         const referrer = options?.referrer
         const title = options?.title
@@ -31,8 +29,8 @@ export class OpenRouterPlugin implements ProviderPlugin {
 
         // Build messages array
         const messages = [];
-        if (this.systemMessage) {
-            messages.push({ role: "system", content: this.systemMessage });
+        if (systemMessage) {
+            messages.push({ role: "system", content: systemMessage });
         }
         messages.push({ role: "user", content: userMessage });
 
